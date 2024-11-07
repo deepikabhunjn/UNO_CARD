@@ -1,32 +1,32 @@
 import numpy as np
 from PIL import Image
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
-import torchvision
 import torchvision.transforms as transforms
 from torchvision import datasets
 from torch.optim.lr_scheduler import StepLR
 
+# Data augmentation and transformation pipeline
 transform = transforms.Compose([
-    transforms.Resize((585, 410)),
-    transforms.ToTensor(),
+    transforms.Resize((585, 410)),  # Resize images to a fixed size
+    transforms.ToTensor(), # Converting the image into PyTorch tensor
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+# Load dataset with transformation applied
 data = datasets.ImageFolder(root="Dataset", transform=transform)
-validation_size = int(0.2 * len(data))
+
+# Split data into training and validation sets
+validation_size = int(0.2 * len(data)) # 20% for validation
 train_size = len(data) - validation_size
 train_data, validation_size = torch.utils.data.random_split,(data, [train_size, validation_size]) 
+# Data loaders for training and validation sets
 training = torch.utils.data.DataLoader(data, batch_size=32, shuffle=True, num_workers=2)
 validation = torch.utils.data.DataLoader(data, batch_size=32, shuffle=False, num_workers=2)
 
-# image, label = data[0]
-# print(image.size())
-
+# Class labels for the dataset (UNO card types)
 class_names = [
     '0_blue', '1_blue', '2_blue', '3_blue', '4_blue', '5_blue', '6_blue', '7_blue', '8_blue', '9_blue',
     '0_green', '1_green', '2_green', '3_green', '4_green', '5_green', '6_green', '7_green', '8_green', '9_green',
@@ -39,65 +39,69 @@ class_names = [
     'wild', 'wild_draw4'
 ]
 
+# Neural Model Architecture
 class NeuralNet(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.conv1 = nn.Conv2d(3, 16, 3)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(16, 32, 3)
-        self.drop1 = nn.Dropout(p=0.25)
-        self.fc1 = nn.Linear(32 * 144 * 101, 128)
+        self.conv1 = nn.Conv2d(3, 16, 3) # First Conventional Layer
+        self.pool = nn.MaxPool2d(2, 2) # Max Pooling
+        self.conv2 = nn.Conv2d(16, 32, 3) # Second Conventional Layer
+        self.drop1 = nn.Dropout(p=0.25) # Dropout layer 
+        self.fc1 = nn.Linear(32 * 144 * 101, 128) # Fulling Connected Dense Layer
         self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 54)
+        self.fc3 = nn.Linear(64, 54)   # Third fulling connected layer - outputs final classification score
         self.drop2 = nn.Dropout(p=0.25)
 
-
+    # Method that describe how each image input is passed through each layers during forward propagation process
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv1(x))) # Applies C. layer followed by ReLu activation function &&  Applies pooling layer
+        x = self.pool(F.relu(self.conv2(x))) # Applies C. layer followed by ReLu activation function
         x = self.drop1(x)
         x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc1(x)) # passes the flatten tensor through the first C.layer followed by ReLu
         x = self.drop2(x)
-        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc2(x)) 
         x = self.fc3(x)
         return x
 
 if __name__ == "__main__":
 
     net = NeuralNet()
-
-    loss_function = nn.CrossEntropyLoss()
+ 
+    # Define the loss function and optimizer
+    loss_function = nn.CrossEntropyLoss()   # Loss function for classification
     optimizer = optim.Adam(net.parameters(), lr=0.001)
-    scheduler = StepLR(optimizer, step_size=5, gamma=0.7)
+    scheduler = StepLR(optimizer, step_size=5, gamma=0.7)   # Learning rate scheduler
+
+      # Early stopping parameters
     patience = 5
     best_accuracy = 0.0
     epochs_without_improvement = 0
 
     best_accuracy = 0.0
 
-    for epoch in range(30):
+    for epoch in range(30):  # Train for 30 epochs or until early stopping
         print(f"Epoch: {epoch + 1}")
         net.train()
         running_loss = 0.0
 
         for i, data in enumerate(training):
-            inputs, labels = data
+            inputs, labels = data  # Get inputs and labels for the batch
 
             optimizer.zero_grad()
             outputs = net(inputs)
 
             loss = loss_function(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            loss.backward()   # Backpropagation
+            optimizer.step() # Update model parameters
 
             running_loss += loss.item()
 
-        scheduler.step()        
+        scheduler.step()        # Step the learning rate schedule
         print(f"loss: {running_loss / len(training): .4f}")
 
-        net.eval()
+        net.eval()  # Set model to evaluation mode
         correct = 0
         total = 0
         with torch.no_grad():
