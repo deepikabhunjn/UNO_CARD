@@ -6,8 +6,10 @@ import os
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from PIL import ImageTk
-from model import NeuralNet
+from model import NeuralNet # Import the trained model architecture
 
+
+# class labels
 class_names = [
     '0_blue', '1_blue', '2_blue', '3_blue', '4_blue', '5_blue', '6_blue', '7_blue', '8_blue', '9_blue',
     '0_green', '1_green', '2_green', '3_green', '4_green', '5_green', '6_green', '7_green', '8_green', '9_green',
@@ -20,7 +22,10 @@ class_names = [
     'wild', 'wild_draw4'
 ]
 
+# Neual Net Architecture
 model = NeuralNet() 
+
+# Load the trained NeuralNet model and set it to evaluation mode
 model.load_state_dict(torch.load('UNO_CNN.pth',weights_only=True))  
 model.eval()  
 
@@ -30,17 +35,20 @@ preprocess = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+# Function to predict the card label from an image
 def predict_card_from_image(image):
-    input_tensor = preprocess(image).unsqueeze(0)  
+    input_tensor = preprocess(image).unsqueeze(0)   # Preprocess and add a batch dimension
     with torch.no_grad():
         output = model(input_tensor)
-    _, predicted_idx = torch.max(output, 1)
-    predicted_class = class_names[predicted_idx.item()]
+    _, predicted_idx = torch.max(output, 1)  # Get the index of the predicted class
+    predicted_class = class_names[predicted_idx.item()]  # Map index to class name
     return predicted_class
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("green")
 
+
+# Main GUI application class
 class UNOCardDetectorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -82,6 +90,7 @@ class UNOCardDetectorApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
+    # Function to make a prediction based on a file
     def select_file(self):
         self.stop_camera()
 
@@ -93,6 +102,7 @@ class UNOCardDetectorApp(ctk.CTk):
             self.main_label.configure(text="No file selected.")
             messagebox.showwarning("No file selected", "Please select a file to proceed.")
 
+    # Function to make a prediction from webcam
     def start_camera(self):
         self.stop_camera()
         self.image_label.configure(image="")  
@@ -103,6 +113,7 @@ class UNOCardDetectorApp(ctk.CTk):
             self.cap = cv2.VideoCapture(0)  
             self.update_camera_frame()
 
+    # function to stop camera
     def stop_camera(self):
         self.is_camera_running = False
         if self.cap:
